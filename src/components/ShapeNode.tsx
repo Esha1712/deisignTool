@@ -1,28 +1,56 @@
-import { Handle, Position, type NodeProps } from "reactflow";
-import { type CSSProperties } from "react";
+import {
+  Handle,
+  Position,
+  type NodeProps,
+  useReactFlow,
+} from "reactflow";
 
 export type ShapeType = "rectangle" | "circle" | "diamond";
 
-interface ShapeData {
+export interface ShapeNodeData {
   label: string;
   shape: ShapeType;
-  onLabelChange?: (value: string) => void;
-  onDelete?: () => void;
 }
 
-export default function ShapeNode({ data }: NodeProps<ShapeData>) {
-  const baseStyle: CSSProperties = {
+export default function ShapeNode({
+  id,
+  data,
+}: NodeProps<ShapeNodeData>) {
+  const { setNodes, setEdges } = useReactFlow();
+
+  const handleLabelChange = (value: string) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, label: value } }
+          : node
+      )
+    );
+  };
+
+  const handleDelete = () => {
+    setNodes((nds) =>
+      nds.filter((node) => node.id !== id)
+    );
+
+    setEdges((eds) =>
+      eds.filter(
+        (edge) =>
+          edge.source !== id && edge.target !== id
+      )
+    );
+  };
+
+  const baseStyle: React.CSSProperties = {
     padding: 10,
-    border: "2px solid #222",
+    border: "2px solid black",
     background: "white",
     textAlign: "center",
     minWidth: 120,
   };
 
-  const shapeStyles: Record<ShapeType, CSSProperties> = {
-    rectangle: {
-      borderRadius: 8,
-    },
+  const shapeStyles = {
+    rectangle: { borderRadius: 8 },
     circle: {
       borderRadius: "50%",
       width: 120,
@@ -47,29 +75,32 @@ export default function ShapeNode({ data }: NodeProps<ShapeData>) {
       : undefined;
 
   return (
-    <div style={{ ...baseStyle, ...shapeStyles[data.shape] }}>
+    <div
+      style={{
+        ...baseStyle,
+        ...shapeStyles[data.shape],
+      }}
+    >
       <Handle type="target" position={Position.Top} />
 
       <div style={contentStyle}>
         <input
           value={data.label}
-          onChange={(e) => data.onLabelChange?.(e.target.value)}
+          onChange={(e) =>
+            handleLabelChange(e.target.value)
+          }
           style={{
             border: "none",
             outline: "none",
-            textAlign: "center",
             background: "transparent",
+            textAlign: "center",
           }}
         />
 
         <div>
           <button
-            onClick={data.onDelete}
-            style={{
-              marginTop: 5,
-              fontSize: 10,
-              cursor: "pointer",
-            }}
+            onClick={handleDelete}
+            style={{ marginTop: 5 }}
           >
             Delete
           </button>
