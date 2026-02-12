@@ -1,84 +1,100 @@
 import ReactFlow, {
-    Background,
-    Controls,
-    addEdge,
-    type Connection,
-    type Node,
-    useNodesState,
-    useEdgesState,
+  Background,
+  Controls,
+  addEdge,
+  type Connection,
+  type Node,
+  useNodesState,
+  useEdgesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { useCallback } from "react";
 import { useAuth } from "../hooks/useAuth";
-import EditableNode from "../components/EditableNode";
+import ShapeNode, { type ShapeType } from "../components/ShapeNode";
 
 const nodeTypes = {
-    editable: EditableNode,
+  shape: ShapeNode,
 };
 
 export default function DiagramEditorPage() {
-    const { user } = useAuth();
-    const isEditor = user?.role === "editor";
+  const { user } = useAuth();
+  const isEditor = user?.role === "editor";
 
-    const [nodes, setNodes, onNodesChange] = useNodesState([]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-    const onConnect = useCallback(
-        (connection: Connection) =>
-            setEdges((eds) => addEdge(connection, eds)),
-        [setEdges]
-    );
+  const onConnect = useCallback(
+    (connection: Connection) =>
+      setEdges((eds) => addEdge(connection, eds)),
+    [setEdges]
+  );
 
-    const addNode = () => {
-        const newNode: Node = {
-            id: crypto.randomUUID(),
-            type: "editable", // important
-            position: {
-                x: Math.random() * 400,
-                y: Math.random() * 400,
-            },
-            data: {
-                label: "New Node",
-                onChange: (newLabel: string) => {
-                    setNodes((nds) =>
-                        nds.map((node) =>
-                            node.id === newNode.id
-                                ? { ...node, data: { ...node.data, label: newLabel } }
-                                : node
-                        )
-                    );
-                },
-            },
-        };
+  const addNode = (shape: ShapeType) => {
+    const id = crypto.randomUUID();
 
-        setNodes((nds) => [...nds, newNode]);
+    const newNode: Node = {
+      id,
+      type: "shape",
+      position: {
+        x: Math.random() * 400,
+        y: Math.random() * 400,
+      },
+      data: {
+        label: `${shape} node`,
+        shape,
+        onLabelChange: (newLabel: string) => {
+          setNodes((nds) =>
+            nds.map((node) =>
+              node.id === id
+                ? { ...node, data: { ...node.data, label: newLabel } }
+                : node
+            )
+          );
+        },
+        onDelete: () => {
+          setNodes((nds) => nds.filter((node) => node.id !== id));
+          setEdges((eds) =>
+            eds.filter(
+              (edge) => edge.source !== id && edge.target !== id
+            )
+          );
+        },
+      },
     };
 
-    return (
-        <div style={{ height: "100vh" }}>
-            {isEditor && (
-                <button
-                    style={{ position: "absolute", zIndex: 10 }}
-                    onClick={addNode}
-                >
-                    Add Node
-                </button>
-            )}
+    setNodes((nds) => [...nds, newNode]);
+  };
 
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                onNodesChange={isEditor ? onNodesChange : undefined}
-                onEdgesChange={isEditor ? onEdgesChange : undefined}
-                onConnect={isEditor ? onConnect : undefined}
-                nodesDraggable={isEditor}
-                nodesConnectable={isEditor}
-                fitView
-            >
-                <Background />
-                <Controls />
-            </ReactFlow>
+  return (
+    <div style={{ height: "100vh" }}>
+      {isEditor && (
+        <div style={{ position: "absolute", zIndex: 10 }}>
+          <button onClick={() => addNode("rectangle")}>
+            Add Rectangle
+          </button>
+          <button onClick={() => addNode("circle")}>
+            Add Circle
+          </button>
+          <button onClick={() => addNode("diamond")}>
+            Add Diamond
+          </button>
         </div>
-    );
+      )}
+
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onNodesChange={isEditor ? onNodesChange : undefined}
+        onEdgesChange={isEditor ? onEdgesChange : undefined}
+        onConnect={isEditor ? onConnect : undefined}
+        nodesDraggable={isEditor}
+        nodesConnectable={isEditor}
+        fitView
+      >
+        <Background />
+        <Controls />
+      </ReactFlow>
+    </div>
+  );
 }
