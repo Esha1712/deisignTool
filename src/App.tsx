@@ -32,18 +32,6 @@ function App() {
         }
       />
 
-      {/* Example: Editor Only Route (Optional) */}
-      <Route
-        path="/diagram/new"
-        element={
-          <ProtectedRoute>
-            <RoleGuard allowed={["editor"]}>
-              <DiagramEditorPage />
-            </RoleGuard>
-          </ProtectedRoute>
-        }
-      />
-
       <Route
         path="/profile"
         element={
