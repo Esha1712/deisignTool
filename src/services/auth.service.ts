@@ -4,7 +4,7 @@ import {
   onAuthStateChanged,
   type User
 } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import type { AppUser } from "../types/user.types";
 
@@ -37,4 +37,16 @@ export const listenToAuthChanges = (
       });
     }
   });
+};
+
+export const getUserByEmail = async (email: string) => {
+  const q = query(collection(db, "users"), where("email", "==", email));
+  const snapshot = await getDocs(q);
+
+  if (snapshot.empty) return null;
+
+  return {
+    id: snapshot.docs[0].id,
+    ...snapshot.docs[0].data(),
+  };
 };

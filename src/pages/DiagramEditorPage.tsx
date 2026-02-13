@@ -1,117 +1,129 @@
 import { useParams, useNavigate } from "react-router-dom";
 import {
-    useNodesState,
-    useEdgesState,
-    addEdge,
-    type Connection,
-    type Node,
-    ReactFlow,
-    Background,
-    Controls,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  type Connection,
+  type Node,
+  ReactFlow,
+  Background,
+  Controls,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 
 import ShapeNode, { type ShapeType } from "../components/ShapeNode";
 import NodePanel from "../components/NodePanel";
 import { getDiagram, saveDiagram } from "../services/diagram.service";
+import type { UserRole } from "../types/user.types";
 
 const nodeTypes = { shape: ShapeNode };
 
 export default function DiagramEditorPage() {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const { user } = useAuth();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-    const isEditor = user?.role === "editor";
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-    const [nodes, setNodes, onNodesChange] = useNodesState([]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [diagramOwner, setDiagramOwner] = useState<string | null>(null);
+  const [diagramShared, setDiagramShared] = useState<
+    Record<string, UserRole>
+  >({});
 
-    useEffect(() => {
-        console.log("DiagramEditorPage useEffect", id, user);
-        if (!id || !user) return;
+  useEffect(() => {
+    if (!id || !user) return;
 
-        if (id === "new") {
-            const newId = crypto.randomUUID();
+    if (id === "new") {
+      const newId = crypto.randomUUID();
 
-            saveDiagram(newId, user.uid, [], []).then(() => {
-                navigate(`/diagram/${newId}`, { replace: true });
-            });
+      saveDiagram(newId, user.uid, [], []).then(() => {
+        navigate(`/diagram/${newId}`, { replace: true });
+      });
 
-            return;
-        }
+      return;
+    }
 
-        getDiagram(id).then((data) => {
-        console.log("Loaded nodes:", data?.nodes);
-            if (!data) return;
+    getDiagram(id).then((data) => {
+      if (!data) return;
 
-            const safeNodes = (data.nodes ?? []).map((node) => ({
-                ...node,
-                type: "shape",
-            }));
+      setDiagramOwner(data.ownerId);
+      setDiagramShared((data as any).sharedWith || {});
 
-            setNodes(safeNodes);
-            setEdges(data.edges ?? []);
-        });
-    }, [id, user, navigate, setNodes, setEdges]);
+      const safeNodes = (data.nodes ?? []).map((node) => ({
+        ...node,
+        type: "shape",
+      }));
 
-    useEffect(() => {
-        if (!id || id === "new" || !user) return;
+      setNodes(safeNodes);
+      setEdges(data.edges ?? []);
+    });
+  }, [id, user, navigate, setNodes, setEdges]);
 
-        const timeout = setTimeout(() => {
-            saveDiagram(id, user.uid, nodes, edges);
-        }, 600);
+  const role: UserRole | undefined =
+    user?.uid === diagramOwner
+      ? "editor"
+      : diagramShared[user?.uid ?? ""];
 
-        return () => clearTimeout(timeout);
-    }, [nodes, edges, id, user]);
+  const isEditor = role === "editor";
 
-    const onConnect = useCallback(
-        (connection: Connection) => {
-            if (!isEditor) return;
-            setEdges((eds) => addEdge(connection, eds));
-        },
-        [isEditor, setEdges]
-    );
+  useEffect(() => {
+    if (!id || id === "new" || !user) return;
 
-    const addNode = (shape: ShapeType) => {
-        if (!isEditor) return;
+    const timeout = setTimeout(() => {
+      saveDiagram(id, diagramOwner ?? user.uid, nodes, edges);
+    }, 600);
 
-        const uid = crypto.randomUUID();
+    return () => clearTimeout(timeout);
+  }, [nodes, edges, id, user, diagramOwner]);
 
-        const newNode: Node = {
-            id: uid,
-            type: "shape",
-            position: {
-                x: Math.random() * 400,
-                y: Math.random() * 400,
-            },
-            data: {
-                label: `${shape} node`,
-                shape,
-            },
-        };
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      if (!isEditor) return;
+      setEdges((eds) => addEdge(connection, eds));
+    },
+    [isEditor, setEdges]
+  );
 
-        setNodes((nds) => [...nds, newNode]);
+  const addNode = (shape: ShapeType) => {
+    if (!isEditor) return;
+
+    const uid = crypto.randomUUID();
+
+    const newNode: Node = {
+      id: uid,
+      type: "shape",
+      position: {
+        x: Math.random() * 400,
+        y: Math.random() * 400,
+      },
+      data: {
+        label: `${shape} node`,
+        shape,
+      },
     };
 
-    return (
-        <div style={{ width: "100%", height: "100vh" }}>
-            {isEditor && <NodePanel onAdd={addNode} />}
+    setNodes((nds) => [...nds, newNode]);
+  };
 
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                onNodesChange={isEditor ? onNodesChange : undefined}
-                onEdgesChange={isEditor ? onEdgesChange : undefined}
-                onConnect={onConnect}
-                fitView
-            >
-                <Background />
-                <Controls />
-            </ReactFlow>
-        </div>
-    );
+  return (
+    <div style={{ width: "100%", height: "100vh" }}>
+      {isEditor && <NodePanel onAdd={addNode} />}
+
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onNodesChange={isEditor ? onNodesChange : undefined}
+        onEdgesChange={isEditor ? onEdgesChange : undefined}
+        onConnect={onConnect}
+        fitView
+      >
+        <Background />
+        <Controls />
+      </ReactFlow>
+    </div>
+  );
 }

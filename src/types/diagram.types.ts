@@ -11,5 +11,6 @@ export interface Diagram {
   ownerId: string;
   nodes: Node[];
   edges: Edge[];
+  sharedWith?: Record<string, UserRole>;
   updatedAt?: unknown;
 }
