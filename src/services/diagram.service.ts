@@ -16,9 +16,12 @@ import type { Node, Edge } from "reactflow";
 import type { UserRole } from "../types/user.types";
 
 export class DiagramError extends Error {
-  constructor(message: string, public code?: string) {
+  code?: string;
+  
+  constructor(message: string, code?: string) {
     super(message);
     this.name = "DiagramError";
+    this.code = code;
   }
 }
 
